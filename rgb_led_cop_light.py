@@ -38,27 +38,42 @@ class Rgb_led:
         self.__bpwm.duty_u16(self.__cnv_rgb(b))
 
 
-def init_leds():
-    global led1, led2
+def led_alarm(led1, led2, secs=0):
+    # flash led1 and 2 alternating red/blue for secs duration
+    # secs = 0 flashes forever
+    # issue: if secs = 0 how do I break out/override color. can we use an interupt?
+    # https://github.com/peterhinch/micropython-async/blob/master/v3/docs/TUTORIAL.md#8-notes-for-beginners
+    msecs = secs * 1000
+    ticks = 0
+    start_ticks = utime.ticks_ms()
+    
+    while (ticks <= msecs):
+        if (msecs == 0):
+            ticks = 0
+        else:
+            ticks = utime.ticks_ms() - start_ticks 
+        led1.set_color(255,0,0)
+        led2.set_color(0,0,255)
+        utime.sleep_ms(100)
+        led1.set_color(0,0,255)
+        led2.set_color(255,0,0)
+        utime.sleep_ms(100)
+  
+def led_allgood(led1, led2):
+    led1.set_color(0,255,0)
+    led2.set_color(0,255,0)
+
+def cops():
+    # initialize the leds
     led1 = Rgb_led(2,3,4)
     led2 = Rgb_led(6,7,8)
 
-
-def loop():
     while True:
-        print("Red 1")
-        led1.set_color(255,0,0)
-        print("Blue 2")
-        led2.set_color(0,0,255)
-        utime.sleep_ms(100)
-        print("Blue 1")
-        led1.set_color(0,0,255)
-        print("Red 2")
-        led2.set_color(255,0,0)
-        utime.sleep_ms(100)
+        led_allgood(led1, led2)
+        utime.sleep(2)
+        led_alarm(led1,led2,5) # this stops the loops for x secs
         
 
 
 if __name__ == '__main__':
-    init_leds()
-    loop()  
+    cops() 
