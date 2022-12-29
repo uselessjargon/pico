@@ -30,11 +30,11 @@ Example setup and usage:
     GPIO4 --> IN3 --> YELLOW --> pin3
     GPIO5 --> IN4 --> ORANGE --> pin4
 
-# In full-step mode there are 32 steps and the gear reduction comes out to 63.7, which means 2038 steps per rev. Most docs quote a 64:1 reduction
+# In full-step mode there are 32 steps with a gear reduction of 64, so 32x64 = 2048 steps per revolution.
 
 import stepper.py
-stepper1 = Stepper(2038, 2, 3, 4, 5)
-stepper1.set_speed(10)  # max speed is supposedly 15 rpms. Timed 1rpm with 2038 and it was spot on
+stepper1 = Stepper(2048, 2, 3, 4, 5)
+stepper1.set_speed(10)  # max speed is supposedly 15 rpms
 stepper1.step(20)       # 20 steps clockwise
 stepper1.step(-30)      # 30 steps counter clockwise
 
@@ -47,7 +47,6 @@ stepper1.step(-30)      # 30 steps counter clockwise
     - https://github.com/arduino-libraries/Stepper/blob/master/src/Stepper.cpp
 
 # FUTURE
-    - set a max rpm of 15 if set_speed > than 15 (maybe print terminal message about limitation)
     - stop motor [0,0,0,0] if no commands sent after x secs
     - allow input of angles from relative position vs steps (maybe with a class method)
 """
@@ -71,6 +70,10 @@ class Stepper:
         Set revolutions per minute by calculating the delay between steps e.g., motor has 2038 steps/rev so
         delay = (60 sec/2038 steps converted to microsecs ) / number of rpm's entered
         """
+        # cap rpms at 15 so motor doesn't stall
+        if (what_speed > 15):
+            print(f"{what_speed} RPMs is too high. The 28BYJ-48 stalls out at higher than 15 RPM so capping it at 15.")
+            what_speed = 15
         self.step_delay = 60 * 1000 * 1000 / self.number_of_steps / what_speed
 
 
@@ -104,7 +107,13 @@ class Stepper:
                 # step the motor to step 0, 1, 2, 3 - each step number is sequentially set to 0,1,2,3 due to modulo 4 - cool stuff
                 self.step_motor(self.step_number % 4)
 
-
+    def stop_motor(self):
+        # stops current from going to motor after step run
+        self.pin1.value(0)
+        self.pin2.value(0)
+        self.pin3.value(0)
+        self.pin4.value(0)
+        
     def step_motor(self, this_step:int):
         # python 3.10+ has switch but staying with if statements for compatibility
         # NOTE: as the code is written above it will never hit step 0 first - not sure it matters as long as the order is correct
@@ -131,10 +140,11 @@ class Stepper:
 
 
 def main():
-    stepper1 = Stepper(2038, 2, 3, 4, 5)
-    stepper1.set_speed(0.1)  # set speed to 10 rpms
-    #stepper1.step(2038)       # 2038 steps clockwise = full rotation
-    stepper1.step(2038)
+    stepper1 = Stepper(2048, 2, 3, 4, 5)
+    stepper1.set_speed(300)  # set speed to 10 rpms
+    stepper1.step(2048)
+    utime.sleep(1)
+    stepper1.stop_motor()
     
 if __name__ == "__main__":
     main()
