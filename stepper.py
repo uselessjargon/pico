@@ -34,16 +34,22 @@ Example setup and usage:
 
 import stepper.py
 stepper1 = Stepper(2038, 2, 3, 4, 5)
-stepper1.set_speed(10)  # max speed is supposedly 15 rpms
+stepper1.set_speed(10)  # max speed is supposedly 15 rpms. Timed 1rpm with 2038 and it was spot on
 stepper1.step(20)       # 20 steps clockwise
 stepper1.step(-30)      # 30 steps counter clockwise
 
 # BUGS
-- current motor/driver goes in reverse for positive and forward for negative
+- current motor/driver goes in reverse for positive and forward for negative - same happens with test script. Maybe test with arduino
+
 # REFS
     - https://leap.tardate.com/kinetics/steppermotors/28byj48/
     - https://lastminuteengineers.com/28byj48-stepper-motor-arduino-tutorial/
     - https://github.com/arduino-libraries/Stepper/blob/master/src/Stepper.cpp
+
+# FUTURE
+    - set a max rpm of 15 if set_speed > than 15 (maybe print terminal message about limitation)
+    - stop motor [0,0,0,0] if no commands sent after x secs
+    - allow input of angles from relative position vs steps (maybe with a class method)
 """
 
 class Stepper:
@@ -60,22 +66,21 @@ class Stepper:
         self.pin4 = Pin(pin4, Pin.OUT)
 
 
-    def set_speed(self, what_speed:int):
+    def set_speed(self, what_speed:float):
         """
         Set revolutions per minute by calculating the delay between steps e.g., motor has 2038 steps/rev so
-        delay = (60 sec/512 steps converted to microsecs ) / number of rpm's entered
+        delay = (60 sec/2038 steps converted to microsecs ) / number of rpm's entered
         """
         self.step_delay = 60 * 1000 * 1000 / self.number_of_steps / what_speed
-        
+
+
     def step(self, steps_to_move:int):
-        print("in step")
         steps_left = abs(steps_to_move) # how many steps to take
         # determine the direction + = clockwise, - = counter clockwise
         if (steps_to_move > 0):
             self.direction = 1
         if (steps_to_move < 0):
             self.direction = 0
-        
         # decrement the number of steps, moving one step at a time
         while (steps_left > 0):
             now = utime.ticks_us()
@@ -91,7 +96,6 @@ class Stepper:
                     if (self.step_number == self.number_of_steps):
                         self.step_number = 0
                 else:
-                    print("in negfative")
                     if (self.step_number == 0):
                         self.step_number = self.number_of_steps
                     self.step_number -= 1
@@ -126,12 +130,11 @@ class Stepper:
             self.pin4.value(1)
 
 
-# def main():
-#     stepper1 = Stepper(2038, 2, 3, 4, 5)
-#     stepper1.set_speed(15)  # set speed to 10 rpms
-#     #stepper1.step(2048)       # 2038 steps clockwise = full rotation
-#     stepper1.step(2038)      # 30 steps counter clockwise  
-#     
-#     
-# if __name__ == "__main__":
-#     main()
+def main():
+    stepper1 = Stepper(2038, 2, 3, 4, 5)
+    stepper1.set_speed(0.1)  # set speed to 10 rpms
+    #stepper1.step(2038)       # 2038 steps clockwise = full rotation
+    stepper1.step(2038)
+    
+if __name__ == "__main__":
+    main()
