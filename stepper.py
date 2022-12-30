@@ -33,13 +33,15 @@ Example setup and usage:
 # In full-step mode there are 32 steps with a gear reduction of 64, so 32x64 = 2048 steps per revolution.
 
 import stepper.py
-stepper1 = Stepper(2048, 2, 3, 4, 5)
+stepper1 = Stepper(2048, 2, 3, 4, 5) # total motor steps, Pico pin #'s
 stepper1.set_speed(10)  # max speed is supposedly 15 rpms
 stepper1.step(20)       # 20 steps clockwise
 stepper1.step(-30)      # 30 steps counter clockwise
 
 # BUGS
-- current motor/driver goes in reverse for positive and forward for negative - same happens with test script. Maybe test with arduino
+1. Current motor/driver goes in reverse for positive and forward for negative.
+   And, same happens with test script. However, arduino code runs clockwise with in2 ands in3 pins
+   swapped. TEMP FIX: change the step_motor sequences in step_motor.
 
 # REFS
     - https://leap.tardate.com/kinetics/steppermotors/28byj48/
@@ -49,6 +51,8 @@ stepper1.step(-30)      # 30 steps counter clockwise
 # FUTURE
     - stop motor [0,0,0,0] if no commands sent after x secs
     - allow input of angles from relative position vs steps (maybe with a class method)
+    - we want the class to be able to pass control back to the main script
+    - add half-stepping
 """
 
 class Stepper:
@@ -57,6 +61,7 @@ class Stepper:
         self.direction = 0 # motor direction
         self.last_step_time = 0 # timestamp in us of the last step taken
         self.number_of_steps = number_of_steps # total number of steps for this motor
+        #self.slow_test_steps = list(range(4))
         
         # set the pin modes
         self.pin1 = Pin(pin1, Pin.OUT)
@@ -67,8 +72,9 @@ class Stepper:
 
     def set_speed(self, what_speed:float):
         """
-        Set revolutions per minute by calculating the delay between steps e.g., motor has 2038 steps/rev so
-        delay = (60 sec/2038 steps converted to microsecs ) / number of rpm's entered
+        Set revolutions per minute by calculating the delay between steps in microseconds
+        e.g., motor has 2048 steps/rev, so 1 rev/min = 2048 steps / 60 secs
+        step_delay = microsecs / step = (60 sec * 1000 * 1000/2048 steps ) / number of rpm's entered
         """
         # cap rpms at 15 so motor doesn't stall
         if (what_speed > 15):
@@ -104,8 +110,10 @@ class Stepper:
                     self.step_number -= 1
                 # decrement steps left
                 steps_left -= 1
-                # step the motor to step 0, 1, 2, 3 - each step number is sequentially set to 0,1,2,3 due to modulo 4 - cool stuff
+                # step the motor to step 0, 1, 2, 3 - each step number
+                # is sequentially set to 0,1,2,3 due to modulo 4 - cool stuff
                 self.step_motor(self.step_number % 4)
+
 
     def stop_motor(self):
         # stops current from going to motor after step run
@@ -113,26 +121,53 @@ class Stepper:
         self.pin2.value(0)
         self.pin3.value(0)
         self.pin4.value(0)
-        
+
+
+    def _slow_step(self, steps):
+        # allows viewing sequence of lights on driver module
+        for step in steps:
+            self.step_motor(step)
+            utime.sleep(1)
+
+
+    def test(self):
+        # run through a foward and reverse test slowly to see which lights sequence on the driver module
+        # then run through a full foward and reverse cycle at 10 RPM
+        steps = list(range(4))
+        # slow forward
+        self._slow_step(steps)
+        steps.reverse()
+        self.stop_motor()
+        utime.sleep(1)
+        # slow backward
+        self._slow_step(steps)
+        self.set_speed(10)
+        # forward full rev
+        self.step(self.number_of_steps)
+        utime.sleep(0.5)
+        # reverse full rev
+        self.step(-self.number_of_steps)
+        self.stop_motor()
+            
+
     def step_motor(self, this_step:int):
         # python 3.10+ has switch but staying with if statements for compatibility
-        # NOTE: as the code is written above it will never hit step 0 first - not sure it matters as long as the order is correct
-        if (this_step == 0):
+        if (this_step == 3):
             self.pin1.value(1)
             self.pin2.value(1)
             self.pin3.value(0)
             self.pin4.value(0)
-        elif (this_step == 1):
+        elif (this_step == 2):
             self.pin1.value(0)
             self.pin2.value(1)
             self.pin3.value(1)
             self.pin4.value(0)
-        elif (this_step == 2):
+        elif (this_step == 1):
             self.pin1.value(0)
             self.pin2.value(0)
             self.pin3.value(1)
             self.pin4.value(1)
-        elif (this_step == 3):
+        elif (this_step == 0):
             self.pin1.value(1)
             self.pin2.value(0)
             self.pin3.value(0)
@@ -140,11 +175,25 @@ class Stepper:
 
 
 def main():
+    # so I can run mutliple stepper motors but it's still sequential.
+    # how to run the code so I can control each separately
+    # basically start the sequence and give back control to the main loop
+    # also why are the motors running backwards?
     stepper1 = Stepper(2048, 2, 3, 4, 5)
-    stepper1.set_speed(300)  # set speed to 10 rpms
-    stepper1.step(2048)
-    utime.sleep(1)
-    stepper1.stop_motor()
+    #stepper2 = Stepper(2048, 6, 7, 8, 9)
+    stepper1.set_speed(10)
+    #stepper2.set_speed(10)
+    stepper1.test()
+    #stepper2.test()
+
+    
     
 if __name__ == "__main__":
     main()
+
+
+A
+B
+B
+B
+
